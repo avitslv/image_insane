@@ -1,0 +1,9 @@
+name = Image Insane
+description = "Allows editors to easily change images on site."
+package = Image
+core = 7.x
+version = "7.x-1.x-dev"
+
+stylesheets[all][] = css/image_insane.css
+
+;dependencies[] = 

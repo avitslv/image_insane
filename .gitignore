@@ -1,0 +1,13 @@
+._*
+.fuse_*
+local.*
+*.sql
+*.swp
+.idea
+.mysql
+.sql
+.dump
+
+.sass-cache
+.nfs*
+.DS_Store
