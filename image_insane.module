@@ -23,16 +23,28 @@ function image_insane_init(){
  */
 function image_insane_menu(){
 
-	$items['image_insane_file_upload'] = array(
+  $items['image_insane_file_upload'] = array(
     'title' => t('AJAX callback/listener for file uploads'),
     'page callback' => '_image_insane_upload_callback',
-    'access arguments' => array(
-      'access content',
-    ),
+    'access arguments' => array('image insane'),
+    'type' => MENU_CALLBACK
   );
 
   return $items;
 }
+
+/**
+ * Implementation of hook_permission().
+ */
+function image_insane_permission() {
+  return array(
+    'image insane' => array(
+      'title' => t('Allow image drag & drop replacement'),
+      'description' => t(''),
+    ),
+  );
+}
+
 
 function _image_insane_upload_callback(){
 
@@ -44,6 +56,7 @@ function _image_insane_upload_callback(){
     $entity_id = $json_data->entity_id;
     $entity_type = $json_data->entity_type;
     $image_style = $json_data->image_style;
+    $image_delta = $json_data->image_delta;
     $image_field_name = $json_data->image_field_name;
 
     switch($operation){
@@ -54,9 +67,10 @@ function _image_insane_upload_callback(){
 		    list(, $base64_data) = explode(',', $base64_data);
 		    $base64_data = base64_decode($base64_data);
 
-    		$file->status = FILE_STATUS_TEMPORARY;
 		    $file = file_save_data($base64_data, 'public://'.$json_data->name);
-
+		    $file->status = FILE_STATUS_TEMPORARY;
+		    file_save($file);
+		    
 		    $return_array = json_encode(
 		    	array(
 		    		'image_url' => image_style_url($image_style, $file->uri),
@@ -82,8 +96,6 @@ function _image_insane_upload_callback(){
 		    //  Delete olf file and it's db record
 		    $old_items = field_get_items($entity_type, $entity, $image_field_name);
 		    $old_file = reset($old_items);
-		    $old_file = (object) $old_file;
-		    file_delete($old_file);
 
 		    // new file
 		    $entity->field_image[$langcode][0] = array(
@@ -98,18 +110,14 @@ function _image_insane_upload_callback(){
 		    );
 		    field_attach_update($entity_type, $entity);
 
+		    //	Delete old file entries
+		    $old_file = (object) $old_file;
+		    file_delete($old_file);
+
 		    print 'save_success';
 
     		break;
-    	default:
     }
-    
-
-    
-
-    
-
-    // print image_style_url($image_style, $file->uri);
 
   }
 
@@ -122,67 +130,29 @@ function _image_insane_upload_callback(){
 */
 function image_insane_field_attach_view_alter(&$output, $context) {
 
-  $field_name = key($output);
   foreach (element_children($output) as $field_name) {
     $element = &$output[$field_name];
     if ($element['#field_type'] == 'image') {
       if (!empty($element['#items'])) {
         $entity_type = $element['#entity_type'];
         $entity = $element['#object'];
-        $wrapper = entity_metadata_wrapper($entity_type, $entity);
-        $entity_id = $wrapper->getIdentifier();
-        foreach ($element['#items'] as $delta => $item) {
-      		$element[$delta]['#item']['attributes'] = array(
-      			'class' => 'image-insane-item',
-      			'data-entity-id' => $entity_id,
-            'data-entity-type' => $entity_type,
-      			'data-image-field-name' => $field_name,
-      			'data-image-style' => $element[$delta]['#image_style'],
-            'data-image-delta' => $delta,
-            'data-image-original' => image_style_url($element[$delta]['#image_style'], $item['uri']),
-      		);
+        if (user_access('image insane') && entity_access('update', $entity_type, $entity)) {
+          $wrapper = entity_metadata_wrapper($entity_type, $entity);
+          $entity_id = $wrapper->getIdentifier();
+          foreach ($element['#items'] as $delta => $item) {
+            $element[$delta]['#item']['attributes'] = array(
+              'class' => 'image-insane-item',
+              'data-entity-id' => $entity_id,
+              'data-entity-type' => $entity_type,
+              'data-image-field-name' => $field_name,
+              'data-image-style' => $element[$delta]['#image_style'],
+              'data-image-delta' => $delta,
+              'data-image-original' => image_style_url($element[$delta]['#image_style'], $item['uri']),
+            );
+          }
         }
       }
     }
   }
 }
 
-
-// /**
-// * Implements hook_preprocess_field().
-// */
-// function image_insane_preprocess_field(&$variables) {
-//
-//   //dsm($variables);
-//
-//   if($variables['element']['#field_type'] == 'image'){
-//
-//     //  Get the first item
-//     $item = reset($variables['items']);
-//
-//     //  Node id
-//     $nid = $variables['element']['#object']->nid;
-//     //  Image style
-//     $image_style = $item['#image_style'];
-//     //  Image field name
-//     $image_field_name = $variables['element']['#field_name'];
-//
-//     //  Add data attributes for images
-//     $item['#item']['attributes'] = array(
-//       'class' => 'image-insane-item',
-//       'data-image-style' => $image_style,
-//       'data-nid' => $nid,
-//       'data-image-field-name' => $image_field_name,
-//     );
-//
-//     unset($variables['items']);
-//     $variables['items'][] = $item;
-//
-//     // dsm($item);
-//     // dsm($nid);
-//
-//   }
-//   // dsm($variables);
-//   // dsm('------');
-//
-// }

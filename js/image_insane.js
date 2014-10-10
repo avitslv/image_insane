@@ -165,6 +165,7 @@
 					  console.log('save - success!');
 
 					  if(data == 'save_success'){
+					  	element.attr('data-image-original', element.attr('src'));
 					  	element.parent().removeClass('is-visible');
 					  }else{
 					  	console.log("Something went wrong saving image");
