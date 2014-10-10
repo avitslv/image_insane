@@ -17,6 +17,11 @@
 				
 				//	Add Wrapper for image insane items
 				$('.image-insane-item').wrap('<div class="image-insane-drop-zone"></div>');
+				$('.image-insane-drop-zone').prepend('<div class="image-insane-icon"></div>');
+
+				//
+				$('.image-insane-drop-zone').first().addClass('in-action');
+
 
 				//	Loop through image insane Drop Zones
 				$('.image-insane-drop-zone').each(function(i){
@@ -107,10 +112,10 @@
   					  console.log('successss!');
   					  console.log(data);
   					  $(evt.target).attr('src', data);
-            }
+            },
   					error: function(data) {
   						console.log("failed post action!");
-  					}
+  					},
           });
 
         };

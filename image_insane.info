@@ -6,4 +6,4 @@ version = "7.x-1.x-dev"
 
 stylesheets[all][] = css/image_insane.css
 
-;dependencies[] = 
+dependencies[] = entity
