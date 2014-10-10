@@ -27,6 +27,7 @@ function image_insane_menu(){
     'title' => t('AJAX callback/listener for file uploads'),
     'page callback' => '_image_insane_upload_callback',
     'access arguments' => array('image insane'),
+    'type' => MENU_CALLBACK
   );
 
   return $items;
@@ -38,7 +39,7 @@ function image_insane_menu(){
 function image_insane_permission() {
   return array(
     'image insane' => array(
-      'title' => t('Allow image drag & drop replacment'),
+      'title' => t('Allow image drag & drop replacement'),
       'description' => t(''),
     ),
   );
@@ -57,43 +58,43 @@ function _image_insane_upload_callback(){
     $image_delta = $json_data->image_delta;
     $image_field_name = $json_data->image_field_name;
 
-    //  File/image properties
-    $base64_data = $json_data->base64;
-    list($type, $base64_data) = explode(';', $base64_data);
-    list(, $base64_data) = explode(',', $base64_data);
-    $base64_data = base64_decode($base64_data);
-
-    $file->status = FILE_STATUS_TEMPORARY;
-    $file = file_save_data($base64_data, 'public://'.$json_data->name);
-
     //  Load entity
     $entity = entity_load($entity_type, array($entity_id));
     $entity = reset($entity);
 
-    global $language;
-    $field_info = field_info_field($image_field_name);
-    $langcode = $field_info['translatable'] ? $language->language : LANGUAGE_NONE;
+    if (entity_access('update', $entity_type, $entity)) {
+      //  File/image properties
+      $base64_data = $json_data->base64;
+      list($type, $base64_data) = explode(';', $base64_data);
+      list(, $base64_data) = explode(',', $base64_data);
+      $base64_data = base64_decode($base64_data);
 
-    //  Delete olf file and it's db record
-    $old_items = field_get_items($entity_type, $entity, $image_field_name);
-    $old_file = reset($old_items);
-    $old_file = (object) $old_file;
-    file_delete($old_file);
+      $file->status = FILE_STATUS_TEMPORARY;
+      $file = file_save_data($base64_data, 'public://'.$json_data->name);
 
-    // new file
-    $entity->field_image[$langcode][$image_delta] = array(
-     'fid' => $file->fid,
-     'uri' => $file->uri,
-     'filename' => $file->filename,
-     'filemime' => $file->filemime,
-     'uid' => $file->uid,
-     'status' => $file->status,
-     'timestamp' => $file->timestamp,
-     'filesize' => $file->filesize,
-    );
-    field_attach_update($entity_type, $entity);
+      $langcode = field_language($entity_type, $entity, $image_field_name);
 
-    print image_style_url($image_style, $file->uri);
+      //  Delete olf file and it's db record
+      $old_items = field_get_items($entity_type, $entity, $image_field_name);
+      $old_file = reset($old_items);
+      $old_file = (object) $old_file;
+      file_delete($old_file);
+
+      // new file
+      $entity->field_image[$langcode][$image_delta] = array(
+       'fid' => $file->fid,
+       'uri' => $file->uri,
+       'filename' => $file->filename,
+       'filemime' => $file->filemime,
+       'uid' => $file->uid,
+       'status' => $file->status,
+       'timestamp' => $file->timestamp,
+       'filesize' => $file->filesize,
+      );
+      field_attach_update($entity_type, $entity);
+
+      print image_style_url($image_style, $file->uri);
+    }
 
   }
 
@@ -106,24 +107,26 @@ function _image_insane_upload_callback(){
 */
 function image_insane_field_attach_view_alter(&$output, $context) {
 
-  $field_name = key($output);
+
   foreach (element_children($output) as $field_name) {
     $element = &$output[$field_name];
     if ($element['#field_type'] == 'image') {
       if (!empty($element['#items'])) {
         $entity_type = $element['#entity_type'];
         $entity = $element['#object'];
-        $wrapper = entity_metadata_wrapper($entity_type, $entity);
-        $entity_id = $wrapper->getIdentifier();
-        foreach ($element['#items'] as $delta => $item) {
-      		$element[$delta]['#item']['attributes'] = array(
-      			'class' => 'image-insane-item',
-      			'data-entity-id' => $entity_id,
-            'data-entity-type' => $entity_type,
-      			'data-image-field-name' => $field_name,
-      			'data-image-style' => $element[$delta]['#image_style'],
-            'data-image-delta' => $delta,
-      		);
+        if (user_access('image insane') && entity_access('update', $entity_type, $entity)) {
+          $wrapper = entity_metadata_wrapper($entity_type, $entity);
+          $entity_id = $wrapper->getIdentifier();
+          foreach ($element['#items'] as $delta => $item) {
+            $element[$delta]['#item']['attributes'] = array(
+              'class' => 'image-insane-item',
+              'data-entity-id' => $entity_id,
+              'data-entity-type' => $entity_type,
+              'data-image-field-name' => $field_name,
+              'data-image-style' => $element[$delta]['#image_style'],
+              'data-image-delta' => $delta,
+            );
+          }
         }
       }
     }
