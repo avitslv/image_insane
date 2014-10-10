@@ -54,6 +54,7 @@ function _image_insane_upload_callback(){
     $entity_id = $json_data->entity_id;
     $entity_type = $json_data->entity_type;
     $image_style = $json_data->image_style;
+    $image_delta = $json_data->image_delta;
     $image_field_name = $json_data->image_field_name;
 
     //  File/image properties
@@ -80,7 +81,7 @@ function _image_insane_upload_callback(){
     file_delete($old_file);
 
     // new file
-    $entity->field_image[$langcode][0] = array(
+    $entity->field_image[$langcode][$image_delta] = array(
      'fid' => $file->fid,
      'uri' => $file->uri,
      'filename' => $file->filename,
