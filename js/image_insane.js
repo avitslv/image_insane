@@ -18,6 +18,8 @@
 				//	Add Wrapper for image insane items
 				$('.image-insane-item').wrap('<div class="image-insane-drop-zone"></div>');
 				$('.image-insane-drop-zone').prepend('<div class="image-insane-icon"></div>');
+				$('.image-insane-drop-zone').prepend('<a href="#" class="action-save icon-accept-image-insane"></a>');
+				$('.image-insane-drop-zone').prepend('<a href="#" class="action-cancel icon-close-image-insane"></a>');
 
 				//
 				$('.image-insane-drop-zone').first().addClass('in-action');
@@ -94,24 +96,41 @@
 
           //	Collect the JSON and send as POST request
      			var json_data = {
+     				operation: 'preview',
      				name: f.name,
 						base64: e.target.result,
 						entity_id: data_entity_id,
 						entity_type: data_entity_type,
 						image_field_name: data_image_field_name,
 						image_delta: data_image_delta,
-						image_style: data_image_style
+						image_style: data_image_style,
 					}
 					data_to_send = JSON.stringify(json_data);
-                  
+
+					console.log(json_data);
           $.ajax({
             type: "POST",
             url: Drupal.settings.image_insane.post_url,
             data: { json: data_to_send },
             success: function(data) {
-  					  console.log('successss!');
-  					  console.log(data);
-  					  $(evt.target).attr('src', data);
+  					  console.log('preview - success!');
+  					  var response_data = $.parseJSON(data);
+
+  					  console.log(response_data);
+
+  					  $(evt.target).attr('src', response_data.image_url);
+  					  $(evt.target).attr('width', '');
+  					  $(evt.target).attr('height', '');
+
+  					  //	Show controls
+  					  $(evt.target).parent().addClass('is-visible');
+
+  					  //	Update the json data with newly uploaded file id
+  					  json_data.fid = response_data.fid;
+
+  					  //	Add click events to controls
+  					  Drupal.behaviors.image_insane.attachClickControls($(evt.target), json_data);
+
             },
   					error: function(data) {
   						console.log("failed post action!");
@@ -126,7 +145,48 @@
 
 		  $('.image-insane-drop-zone').css('border-color', '');
 
-		}
+		},
+
+		//	
+		attachClickControls: function(element, json_data){
+
+			$('.action-save', element.parent()).click(function(e){
+				e.preventDefault();
+
+				json_data.operation = 'save';
+
+				console.log(json_data);
+				data_to_send = JSON.stringify(json_data);
+				$.ajax({
+          type: "POST",
+          url: Drupal.settings.image_insane.post_url,
+          data: { json: data_to_send },
+          success: function(data) {
+					  console.log('save - success!');
+
+					  if(data == 'save_success'){
+					  	element.parent().removeClass('is-visible');
+					  }else{
+					  	console.log("Something went wrong saving image");
+					  }
+
+          },
+					error: function(data) {
+						console.log("failed post action!");
+					},
+        });
+
+			});
+
+			$('.action-cancel', element.parent()).click(function(e){
+				e.preventDefault();
+
+				element.parent().removeClass('is-visible');
+				element.attr('src', element.attr('data-image-original'));
+
+			});
+
+		},
 
   }
 
