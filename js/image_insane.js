@@ -119,8 +119,8 @@
   					  console.log(response_data);
 
   					  $(evt.target).attr('src', response_data.image_url);
-  					  $(evt.target).attr('width', '');
-  					  $(evt.target).attr('height', '');
+  					  $(evt.target).removeAttr('width');
+  					  $(evt.target).removeAttr('height');
 
   					  //	Show controls
   					  $(evt.target).parent().addClass('is-visible');
