@@ -95,7 +95,6 @@ function _image_insane_upload_callback(){
 function image_insane_field_attach_view_alter(&$output, $context) {
 
   $field_name = key($output);
-  dsm($field_name);
   foreach (element_children($output) as $field_name) {
     $element = &$output[$field_name];
     if ($element['#field_type'] == 'image') {
