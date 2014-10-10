@@ -98,16 +98,20 @@
 						image_style: data_image_style
 					}
 					data_to_send = JSON.stringify(json_data);
-
-					$.post(Drupal.settings.image_insane.post_url, { json: data_to_send })
-					.done(function(data) {
-					  console.log('successss!');
-					  console.log(data);
-					  $(evt.target).attr('src', data)
-					})
-					.fail(function(data) {
-						console.log("failed post action!");
-					});
+                  
+          $.ajax({
+            type: "POST",
+            url: Drupal.settings.image_insane.post_url,
+            data: { json: data_to_send },
+            success: function(data) {
+  					  console.log('successss!');
+  					  console.log(data);
+  					  $(evt.target).attr('src', data);
+            }
+  					error: function(data) {
+  						console.log("failed post action!");
+  					}
+          });
 
         };
       })(f);
