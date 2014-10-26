@@ -5,23 +5,23 @@
  * Allows editors to easily change images on site.
  */
 
-function image_insane_init(){
-
+/**
+ * Implements hook_init().
+ */
+function image_insane_init() {
   drupal_add_js(drupal_get_path('module', 'image_insane') . '/js/image_insane.js');
-
   drupal_add_js(array(
     'image_insane' => array(
       'post_url' => '/image_insane_file_upload',
     ),
   ),
   'setting');
-
 }
 
 /**
  * Implements hook_menu().
  */
-function image_insane_menu(){
+function image_insane_menu() {
 
   $items['image_insane_file_upload'] = array(
     'title' => t('AJAX callback/listener for file uploads'),
@@ -34,7 +34,7 @@ function image_insane_menu(){
 }
 
 /**
- * Implementation of hook_permission().
+ * Implements hook_permission().
  */
 function image_insane_permission() {
   return array(
@@ -45,13 +45,45 @@ function image_insane_permission() {
   );
 }
 
+/**
+ * Implements hook_field_info_alter().
+ */
+function image_insane_field_info_alter(&$info) {
+  // Add a setting for enabling drag & drop replacement to all image fields
+  foreach ($info as $field_type => $field_type_info) {
+    if ($field_type == 'image') {
+      $info[$field_type]['instance_settings'] += array(
+        'image_insane_enabled' => FALSE,
+      );
+    }
+  }
+}
 
-function _image_insane_upload_callback(){
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function image_insane_form_field_ui_field_edit_form_alter(&$form, &$form_state, $form_id) {
+  if (isset($form['#field']['type']) && $form['#field']['type'] == 'image') {
+    $settings = $form['#instance']['settings'];
+    $form['instance']['settings']['image_insane_enabled'] = array(
+      '#type' => 'checkbox',
+      '#title' => t('Enable drag and drop image replacement'),
+      '#description' => t('Users with the appropriate permissions will be able to replace images on the fly with drag and drop.'),
+      '#default_value' => $settings['image_insane_enabled'],
+      '#weight' => 12
+    );
+  }
+}
 
-  if(array_key_exists('json', $_POST)){
+/**
+ * Menu callback for handling image replacement
+ */
+function _image_insane_upload_callback() {
+
+  if (array_key_exists('json', $_POST)) {
     $json_data = json_decode($_POST['json']);
 
-    //  NODE variables
+    // Node variables
     $operation = $json_data->operation;
     $entity_id = $json_data->entity_id;
     $entity_type = $json_data->entity_type;
@@ -59,9 +91,9 @@ function _image_insane_upload_callback(){
     $image_delta = $json_data->image_delta;
     $image_field_name = $json_data->image_field_name;
 
-    switch($operation){
+    switch ($operation) {
       case 'preview':
-        //  File/image properties
+        // File/image properties
         $base64_data = $json_data->base64;
         list($type, $base64_data) = explode(';', $base64_data);
         list(, $base64_data) = explode(',', $base64_data);
@@ -82,10 +114,10 @@ function _image_insane_upload_callback(){
         break;
       case 'save':
         $fid = $json_data->fid;
-        //  Load file based on File ID
+        // Load file based on File ID
         $file = file_load($fid);
 
-        //  Load entity
+        // Load entity
         $entity = entity_load($entity_type, array($entity_id));
         $entity = reset($entity);
 
@@ -93,11 +125,11 @@ function _image_insane_upload_callback(){
         $field_info = field_info_field($image_field_name);
         $langcode = $field_info['translatable'] ? $language->language : LANGUAGE_NONE;
 
-        //  Delete olf file and it's db record
+        // Delete olf file and it's db record
         $old_items = field_get_items($entity_type, $entity, $image_field_name);
         $old_file = $old_items[$image_delta];
 
-        // new file
+        // New file
         $entity->field_image[$langcode][$image_delta] = array(
          'fid' => $file->fid,
          'uri' => $file->uri,
@@ -110,7 +142,7 @@ function _image_insane_upload_callback(){
         );
         field_attach_update($entity_type, $entity);
 
-        //  Delete old file entries
+        // Delete old file entries
         $old_file = (object) $old_file;
         file_delete($old_file);
 
@@ -118,25 +150,23 @@ function _image_insane_upload_callback(){
 
         break;
     }
-
   }
-
   return NULL;
 }
 
-
 /**
-* Implements hook_field_attach_view_alter().
-*/
+ * Implements hook_field_attach_view_alter().
+ */
 function image_insane_field_attach_view_alter(&$output, $context) {
-
   foreach (element_children($output) as $field_name) {
     $element = &$output[$field_name];
     if ($element['#field_type'] == 'image') {
       if (!empty($element['#items'])) {
         $entity_type = $element['#entity_type'];
+        $bundle = $element['#bundle'];
         $entity = $element['#object'];
-        if (user_access('image insane') && entity_access('update', $entity_type, $entity)) {
+        $field_instance = field_info_instance($entity_type, $field_name, $bundle);
+        if ($field_instance['settings']['image_insane_enabled'] == TRUE && user_access('image insane') && entity_access('update', $entity_type, $entity)) {
           $wrapper = entity_metadata_wrapper($entity_type, $entity);
           $entity_id = $wrapper->getIdentifier();
           foreach ($element['#items'] as $delta => $item) {
@@ -155,4 +185,3 @@ function image_insane_field_attach_view_alter(&$output, $context) {
     }
   }
 }
-
