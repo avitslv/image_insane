@@ -24,7 +24,7 @@ function image_insane_init() {
 function image_insane_menu() {
 
   $items['image_insane_file_upload'] = array(
-    'title' => t('AJAX callback/listener for file uploads'),
+    'title' => 'AJAX callback/listener for file uploads',
     'page callback' => '_image_insane_upload_callback',
     'access arguments' => array('image insane'),
     'type' => MENU_CALLBACK
@@ -99,7 +99,7 @@ function _image_insane_upload_callback() {
         list(, $base64_data) = explode(',', $base64_data);
         $base64_data = base64_decode($base64_data);
 
-        $file = file_save_data($base64_data, 'public://'.$json_data->name);
+        $file = file_save_data($base64_data, 'public://' . $json_data->name);
         $file->status = FILE_STATUS_TEMPORARY;
         file_save($file);
 
