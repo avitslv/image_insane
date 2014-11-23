@@ -67,7 +67,7 @@ function image_insane_form_field_ui_field_edit_form_alter(&$form, &$form_state, 
     $settings = $form['#instance']['settings'];
     $form['instance']['settings']['image_insane_enabled'] = array(
       '#type' => 'checkbox',
-      '#title' => t('Enable drag and drop image replacement'),
+      '#title' => t('Enable drag and drop image replacement (Image Insane)'),
       '#description' => t('Users with the appropriate permissions will be able to replace images on the fly with drag and drop.'),
       '#default_value' => $settings['image_insane_enabled'],
       '#weight' => 12
@@ -95,27 +95,80 @@ function _image_insane_upload_callback() {
       case 'preview':
         // File/image properties
         $base64_data = $json_data->base64;
-        list($type, $base64_data) = explode(';', $base64_data);
+        list($file_type, $base64_data) = explode(';', $base64_data);
         list(, $base64_data) = explode(',', $base64_data);
         $base64_data = base64_decode($base64_data);
+        $file_size = strlen($base64_data);
+        list(, $file_type) = explode('/', $file_type);
 
-        $file = file_save_data($base64_data, 'public://' . $json_data->name);
+        //  Get field instance, upload directory settings
+        $entity_wrapper = entity_metadata_wrapper($entity_type, $entity_id);
+        $bundle = $entity_wrapper->getBundle();
+        $field_instance = field_info_instance($entity_type, $image_field_name, $bundle);
+
+        //  Validate file size
+        $error_message = array();
+        $max_filesize = parse_size(file_upload_max_size());
+        if (
+          !empty($field_instance['settings']['max_filesize']) && 
+          parse_size($field_instance['settings']['max_filesize']) < $max_filesize
+        ){
+          $max_filesize = parse_size($field_instance['settings']['max_filesize']);
+        }
+        if($file_size > $max_filesize){
+          $error_message[] = t('Files must be less than') . ' ' . format_size($max_filesize);
+        }
+
+        //  Validate file extension
+        if(!empty($field_instance['settings']['file_extensions'])){
+          $allowed_extensions = explode(' ', $field_instance['settings']['file_extensions']);
+          if(!in_array($file_type, $allowed_extensions)){
+            $error_message[] = t('Only files with the following extensions are allowed:') . ' ' . $field_instance['settings']['file_extensions'];
+          }
+        }
+
+        //  If file did not validate, output error message and return
+        if(!empty($error_message)){
+          //  Return data about newly created (saved) file
+          $return_array = json_encode(
+            array(
+              'status' => 'error',
+              'message' => $error_message,
+            )
+          );
+          print $return_array;
+          return;
+        }
+
+        //  If file did validate, continue with file creation
+        //  Process file path
+        $file_path = 'public://' . $json_data->name;
+        if(!empty($field_instance['settings']['file_directory'])){
+          $file_path = 'public://' . $field_instance['settings']['file_directory'] . '/' . $json_data->name;
+        }
+        //  Save the file
+        $file = file_save_data($base64_data, $file_path);
         $file->status = FILE_STATUS_TEMPORARY;
         file_save($file);
-
+        //  Return data about newly created (saved) file
         $return_array = json_encode(
           array(
-            'image_url' => image_style_url($image_style, $file->uri),
-            'fid' => $file->fid,
+            'status' => 'success',
+            'data' => array(
+              'image_url' => image_style_url($image_style, $file->uri),
+              'fid' => $file->fid,
+            ),
           )
         );
-
         print $return_array;
         break;
       case 'save':
         $fid = $json_data->fid;
         // Load file based on File ID
         $file = file_load($fid);
+        //  Set file status to permanent (1) and save file
+        $file->status = FILE_STATUS_PERMANENT;
+        file_save($file);
 
         // Load entity
         $entity = entity_load($entity_type, array($entity_id));
@@ -146,7 +199,12 @@ function _image_insane_upload_callback() {
         $old_file = (object) $old_file;
         file_delete($old_file);
 
-        print 'save_success';
+        $return_array = json_encode(
+          array(
+            'status' => 'success',
+          )
+        );
+        print $return_array;
 
         break;
     }
@@ -158,6 +216,8 @@ function _image_insane_upload_callback() {
  * Implements hook_field_attach_view_alter().
  */
 function image_insane_field_attach_view_alter(&$output, $context) {
+  //  Image Insane-enabled object counter
+  static $image_insane_count = 0;
   foreach (element_children($output) as $field_name) {
     $element = &$output[$field_name];
     if ($element['#field_type'] == 'image') {
@@ -170,15 +230,33 @@ function image_insane_field_attach_view_alter(&$output, $context) {
           $wrapper = entity_metadata_wrapper($entity_type, $entity);
           $entity_id = $wrapper->getIdentifier();
           foreach ($element['#items'] as $delta => $item) {
+            //  Output image data as Drupal settings
+            drupal_add_js(array(
+              'image_insane' => array(
+                'images' => array(
+                  sha1($image_insane_count) => array(
+                    'entity_id' => $entity_id,
+                    'entity_type' => $entity_type,
+                    'image_field_name' => $field_name,
+                    'image_style' => $element[$delta]['#image_style'],
+                    'image_delta' => $delta,
+                    'image_original' => image_style_url($element[$delta]['#image_style'], $item['uri']),
+                  ),
+                ),
+              ),
+            ), 'setting');
+            //  Add attributes for img element
             $element[$delta]['#item']['attributes'] = array(
-              'class' => 'image-insane-item',
-              'data-entity-id' => $entity_id,
-              'data-entity-type' => $entity_type,
-              'data-image-field-name' => $field_name,
-              'data-image-style' => $element[$delta]['#image_style'],
-              'data-image-delta' => $delta,
-              'data-image-original' => image_style_url($element[$delta]['#image_style'], $item['uri']),
+              'data-image-insane-id' => sha1($image_insane_count),
             );
+            //  Increase Image Insane ID counter
+            $image_insane_count++;
+            //  Output the count of images as setting
+            drupal_add_js(array(
+              'image_insane' => array(
+                'count' => $image_insane_count,
+              ),
+            ), 'setting');
           }
         }
       }
