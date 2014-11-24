@@ -18,7 +18,7 @@
 
 			//	If there is at least one image with drag and drop replacement functionality
 			if(Drupal.settings.image_insane.count != 'undefined' && Drupal.settings.image_insane.count > 0){
-				console.log(Drupal.settings.image_insane);
+				
 				//	Prevent browser file-drop native behaviour
 				Drupal.behaviors.image_insane.preventWindowFileDrop();
 
