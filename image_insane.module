@@ -144,8 +144,9 @@ function _image_insane_upload_callback() {
         //  Process file path
         $file_path = 'public://' . $json_data->name;
         if(!empty($field_instance['settings']['file_directory'])){
-          $file_path = 'public://' . $field_instance['settings']['file_directory'] . '/' . $json_data->name;
+          $file_path = token_replace('public://' . $field_instance['settings']['file_directory'] . '/' . $json_data->name);
         }
+
         //  Save the file
         $file = file_save_data($base64_data, $file_path);
         $file->status = FILE_STATUS_TEMPORARY;
@@ -183,7 +184,7 @@ function _image_insane_upload_callback() {
         $old_file = $old_items[$image_delta];
 
         // New file
-        $entity->field_image[$langcode][$image_delta] = array(
+        $entity->{$image_field_name}[$langcode][$image_delta] = array(
          'fid' => $file->fid,
          'uri' => $file->uri,
          'filename' => $file->filename,
