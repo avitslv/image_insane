@@ -18,7 +18,7 @@
 
 			//	If there is at least one image with drag and drop replacement functionality
 			if(Drupal.settings.image_insane.count != 'undefined' && Drupal.settings.image_insane.count > 0){
-
+				
 				//	Prevent browser file-drop native behaviour
 				Drupal.behaviors.image_insane.preventWindowFileDrop();
 
@@ -44,6 +44,17 @@
 					dropZone.addEventListener('drop', Drupal.behaviors.image_insane.handleDrop, false);
 				}
 
+				//	Implementation to temporary hide anchor links 
+				//	that are position:absolute, because usually they block 
+				//	image drop zone
+				//	@todo: proof of concept! should be improved
+				var absoluteAnchors = $('body a').filter(function (index) {
+					return $(this).css("position") === "absolute";
+        });
+        absoluteAnchors.each(function(i){
+        	$(this).get(0).addEventListener('dragover', Drupal.behaviors.image_insane.handleAnchorDragover, false);
+        });
+				
 			}
 
 		},
@@ -299,6 +310,9 @@
 
 		},
 
+		/*
+		 *	Create a message box instance and remove it after timeout
+		 */
 		createMessageBoxInstance: function(messageBox){
 			//	Hide other/previous message boxes
 			$('.image-insane-message-box').hide();
@@ -309,6 +323,15 @@
 			}, 4000);
 		},
 
+		/*
+		 *	Functions that checks if user has dragged file over 
+		 *	absolutely positioned anchor link, hides it temporary
+		 */
+		handleAnchorDragover: function(evt){
+			if(evt.target.localName == 'a' && $(evt.target).css('position') == 'absolute'){
+				$(evt.target).addClass('image-insane-hidden-anchor');
+			}
+		},
 
   }
 })(jQuery);

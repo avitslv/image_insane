@@ -190,3 +190,10 @@
 .icon-image-insane-loading:before {
 	content: "\e600";
 }
+
+/*
+ *	Hidden anchor link style
+ */
+.image-insane-hidden-anchor {
+	display: none;
+}
