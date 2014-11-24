@@ -18,7 +18,7 @@
 
 			//	If there is at least one image with drag and drop replacement functionality
 			if(Drupal.settings.image_insane.count != 'undefined' && Drupal.settings.image_insane.count > 0){
-				
+				console.log(Drupal.settings.image_insane);
 				//	Prevent browser file-drop native behaviour
 				Drupal.behaviors.image_insane.preventWindowFileDrop();
 
@@ -32,16 +32,23 @@
 
 				//	Loop through images
 				for(var image_insane_id in Drupal.settings.image_insane.images){
-					var image_insane_img = $('*[data-image-insane-id="'+image_insane_id+'"]');
-					//	Wrap element with Image Insane DOM
-					image_insane_img.wrap(element_wrapper).before(element_prefix);
-					//	Select image drop zone element
-					var image_insane_img_drop_zone = image_insane_img.parent('.image-insane-drop-zone');
-					var dropZone = image_insane_img_drop_zone.get(0);
-					//	Attach event listeners to image insane drop zones
-					dropZone.addEventListener('dragover', Drupal.behaviors.image_insane.handleDragOver, false);
-					dropZone.addEventListener('dragleave', Drupal.behaviors.image_insane.handleDragLeave, false);
-					dropZone.addEventListener('drop', Drupal.behaviors.image_insane.handleDrop, false);
+
+					var image_insane_img = $('*[data-image-insane-id="'+image_insane_id+'"]', context);
+					if(
+						!Drupal.settings.image_insane.images[image_insane_id].processed &&
+						image_insane_img.length
+					){
+						Drupal.settings.image_insane.images[image_insane_id].processed = true;
+						//	Wrap element with Image Insane DOM
+						image_insane_img.wrap(element_wrapper).before(element_prefix);
+						//	Select image drop zone element
+						var image_insane_img_drop_zone = image_insane_img.parent('.image-insane-drop-zone');
+						var dropZone = image_insane_img_drop_zone.get(0);
+						//	Attach event listeners to image insane drop zones
+						dropZone.addEventListener('dragover', Drupal.behaviors.image_insane.handleDragOver, false);
+						dropZone.addEventListener('dragleave', Drupal.behaviors.image_insane.handleDragLeave, false);
+						dropZone.addEventListener('drop', Drupal.behaviors.image_insane.handleDrop, false);
+					}
 				}
 
 				//	Implementation to temporary hide anchor links 
